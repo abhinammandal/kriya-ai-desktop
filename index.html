@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,12 +16,61 @@
     </header>
 
     <main>
-        <section aria-labelledby="studio-title">
-            <h2 id="studio-title">Personal Gesture Studio</h2>
-            <p>
-                Create your own hand gesture and teach the application
-                what action it should perform.
-            </p>
+        <section class="studio" aria-labelledby="studio-title">
+            <header class="section-heading">
+                <p>Adaptive Gesture Intelligence</p>
+
+                <h2 id="studio-title">Personal Gesture Studio</h2>
+
+                <p>
+                    Show a hand pose, give it a name and decide
+                    what action it should perform.
+                </p>
+            </header>
+
+            <div class="studio-grid">
+                <article class="panel camera-panel" aria-labelledby="camera-title">
+                    <h3 id="camera-title">1. Show your gesture</h3>
+
+                    <div class="camera-preview">
+                        <video id="camera-video" autoplay muted playsinline>
+                        </video>
+
+                        <p id="camera-placeholder">Camera is currently off</p>
+                    </div>
+
+                    <button id="camera-button" type="button">
+                        Start camera
+                    </button>
+
+                    <p id="camera-status" role="status">
+                        Camera permission has not been requested.
+                    </p>
+                </article>
+
+                <article class="panel training-panel" aria-labelledby="training-title">
+                    <h3 id="training-title">2. Describe your gesture</h3>
+
+                    <form id="gesture-form">
+                        <label for="gesture-name">Gesture name</label>
+
+                        <input id="gesture-name" name="gestureName" type="text" placeholder="For example: Open palm"
+                            required>
+
+                        <label for="gesture-action">Choose an action</label>
+
+                        <select id="gesture-action" name="gestureAction">
+                            <option value="next">Next card</option>
+                            <option value="previous">Previous card</option>
+                            <option value="play">Play or pause</option>
+                            <option value="light">Toggle virtual light</option>
+                            <option value="none">Neutral — no action</option>
+                        </select>
+
+                        <button type="submit">Create gesture</button>
+                    </form>
+                </article>
+            </div>
         </section>
     </main>
 
@@ -28,4 +78,5 @@
         <p>Built with HTML, CSS, JavaScript and AI.</p>
     </footer>
 </body>
+
 </html>
