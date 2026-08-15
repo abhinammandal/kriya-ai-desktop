@@ -42,9 +42,15 @@
                         <p id="camera-placeholder">Camera is currently off</p>
                     </div>
 
-                    <button id="camera-button" type="button">
-                        Start camera
-                    </button>
+                    <div class="camera-actions">
+                        <button id="camera-button" type="button">
+                            Start camera
+                        </button>
+
+                        <button id="capture-sample-button" type="button" disabled>
+                            Capture sample
+                        </button>
+                    </div>
 
                     <p id="camera-status" role="status">
                         Camera permission has not been requested.
@@ -76,6 +82,8 @@
                     <p id="form-status" role="status">
                         No custom gesture has been created yet.
                     </p>
+
+                    <ul id="gesture-list" aria-label="Created gesture classes"></ul>
 
                 </article>
             </div>

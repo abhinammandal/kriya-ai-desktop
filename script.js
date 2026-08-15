@@ -7,6 +7,8 @@ const cameraButton = document.querySelector("#camera-button");
 const cameraStatus = document.querySelector("#camera-status");
 const cameraVideo = document.querySelector("#camera-video");
 const cameraPlaceholder = document.querySelector("#camera-placeholder");
+const captureSampleButton =
+    document.querySelector("#capture-sample-button");
 
 const landmarkCanvas = document.querySelector("#landmark-canvas");
 const canvasContext = landmarkCanvas.getContext("2d");
@@ -50,6 +52,7 @@ let cameraStream = null;
 let handLandmarker = null;
 let animationFrameId = null;
 let lastVideoTime = -1;
+let latestLandmarks = null;
 
 console.log("KRIYA JavaScript is connected.");
 
@@ -148,6 +151,9 @@ function stopCamera() {
     cameraVideo.srcObject = null;
     cameraStream = null;
 
+    latestLandmarks = null;
+    updateCaptureButtonState();
+
     cameraPlaceholder.hidden = false;
     cameraButton.textContent = "Start camera";
 
@@ -173,11 +179,16 @@ function predictWebcam() {
         if (results.landmarks.length > 0) {
             const landmarkCount = results.landmarks[0].length;
 
+            latestLandmarks = results.landmarks[0];
+            updateCaptureButtonState();
+
             drawHandLandmarks(results.landmarks[0]);
 
             cameraStatus.textContent =
                 `Hand detected with ${landmarkCount} landmarks.`;
         } else {
+            latestLandmarks = null;
+            updateCaptureButtonState();
 
             clearLandmarkCanvas();
 
@@ -255,6 +266,11 @@ const gestureNameInput = document.querySelector("#gesture-name");
 const gestureActionSelect = document.querySelector("#gesture-action");
 const formStatus = document.querySelector("#form-status");
 
+const gestureList = document.querySelector("#gesture-list");
+const gestureClasses = [];
+
+let selectedGestureId = null;
+
 gestureForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
@@ -266,8 +282,124 @@ gestureForm.addEventListener("submit", (event) => {
         return;
     }
 
+    const newGesture = {
+        id: crypto.randomUUID(),
+        name: gestureName,
+        action: selectedAction,
+        samples: []
+    };
+
+    gestureClasses.push(newGesture);
+    selectedGestureId = newGesture.id;
+
+    renderGestureClasses();
+
     formStatus.textContent =
-        `${gestureName} will perform the "${selectedAction}" action.`;
+        `${gestureName} was added as a gesture class.`;
 
     gestureForm.reset();
 });
+
+function renderGestureClasses() {
+    gestureList.innerHTML = "";
+
+    gestureClasses.forEach((gesture) => {
+        const listItem = document.createElement("li");
+        const selectButton = document.createElement("button");
+
+        selectButton.type = "button";
+        selectButton.className = "gesture-class-button";
+
+        if (gesture.id === selectedGestureId) {
+            selectButton.classList.add("selected");
+        }
+
+        selectButton.textContent =
+            `${gesture.name} → ${gesture.action} ` +
+            `(${gesture.samples.length} samples)`;
+
+        selectButton.addEventListener("click", () => {
+            selectedGestureId = gesture.id;
+
+            formStatus.textContent =
+                `${gesture.name} is selected for training.`;
+
+            renderGestureClasses();
+        });
+
+        listItem.appendChild(selectButton);
+        gestureList.appendChild(listItem);
+    });
+
+    updateCaptureButtonState();
+}
+
+function updateCaptureButtonState() {
+    const canCapture =
+        cameraStream !== null &&
+        latestLandmarks !== null &&
+        selectedGestureId !== null;
+
+    captureSampleButton.disabled = !canCapture;
+}
+
+function normalizeLandmarks(landmarks) {
+    const wrist = landmarks[0];
+
+    const translatedLandmarks = landmarks.map((landmark) => {
+        return {
+            x: landmark.x - wrist.x,
+            y: landmark.y - wrist.y,
+            z: landmark.z - wrist.z
+        };
+    });
+
+    const distancesFromWrist = translatedLandmarks.map((landmark) => {
+        return Math.sqrt(
+            landmark.x ** 2 +
+            landmark.y ** 2 +
+            landmark.z ** 2
+        );
+    });
+
+    const handScale = Math.max(
+        ...distancesFromWrist,
+        0.0001
+    );
+
+    return translatedLandmarks.flatMap((landmark) => {
+        return [
+            landmark.x / handScale,
+            landmark.y / handScale,
+            landmark.z / handScale
+        ];
+    });
+}
+
+captureSampleButton.addEventListener("click", () => {
+    const selectedGesture = gestureClasses.find((gesture) => {
+        return gesture.id === selectedGestureId;
+    });
+
+    if (selectedGesture === undefined || latestLandmarks === null) {
+        formStatus.textContent =
+            "Select a gesture and show your hand first.";
+
+        return;
+    }
+
+    const sample = normalizeLandmarks(latestLandmarks);
+
+    console.log("Normalized sample:", sample);
+
+    selectedGesture.samples.push(sample);
+
+    renderGestureClasses();
+
+    formStatus.textContent =
+        `Captured sample ${selectedGesture.samples.length} ` +
+        `for ${selectedGesture.name}. ` +
+        `The sample contains ${sample.length} values.`;
+});
+
+

@@ -238,3 +238,60 @@ button:disabled {
 .camera-preview canvas {
     transform: scaleX(-1);
 }
+
+#gesture-list {
+    display: grid;
+    gap: 8px;
+
+    margin: 20px 0 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+#gesture-list li {
+    margin: 0;
+}
+
+.gesture-class-button {
+    width: 100%;
+    padding: 12px;
+
+    color: var(--muted-text);
+    background-color: var(--background);
+
+    font-weight: normal;
+    text-align: left;
+
+    border: 1px solid var(--border);
+    transform: none;
+}
+
+.gesture-class-button:hover {
+    color: var(--text);
+    background-color: var(--surface);
+    transform: none;
+}
+
+.gesture-class-button.selected {
+    color: var(--text);
+    border-color: var(--accent);
+}
+
+.camera-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#capture-sample-button {
+    color: var(--accent);
+    background-color: transparent;
+    border: 1px solid var(--accent);
+}
+
+#capture-sample-button:hover:not(:disabled) {
+    color: var(--background);
+    background-color: var(--accent);
+}
+
