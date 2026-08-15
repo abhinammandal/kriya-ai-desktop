@@ -124,8 +124,21 @@ footer {
 }
 
 .camera-preview video,
+.camera-preview canvas,
 .camera-placeholder {
     grid-area: 1 / 1;
+}
+
+.camera-preview canvas {
+    width: 100%;
+    height: 100%;
+
+    z-index: 1;
+    pointer-events: none;
+}
+
+.camera-placeholder {
+    z-index: 2;
 }
 
 .camera-preview video {
@@ -213,4 +226,15 @@ form button {
     margin-bottom: 0;
     color: var(--muted-text);
     font-size: 13px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.camera-preview video,
+.camera-preview canvas {
+    transform: scaleX(-1);
 }
