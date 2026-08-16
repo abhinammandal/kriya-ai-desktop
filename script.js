@@ -121,6 +121,9 @@ let lastActionTimestamp = 0;
 
 const ACTION_COOLDOWN_MS = 1200;
 
+const GESTURE_STORAGE_KEY =
+    "kriya-trained-gestures";
+
 console.log("KRIYA JavaScript is connected.");
 
 async function initializeHandLandmarker() {
@@ -374,7 +377,14 @@ const gestureActionSelect = document.querySelector("#gesture-action");
 const formStatus = document.querySelector("#form-status");
 
 const gestureList = document.querySelector("#gesture-list");
-const gestureClasses = [];
+
+const deleteGestureButton =
+    document.querySelector("#delete-gesture-button");
+
+const clearGesturesButton =
+    document.querySelector("#clear-gestures-button");
+
+let gestureClasses = [];
 
 let selectedGestureId = null;
 
@@ -397,6 +407,9 @@ gestureForm.addEventListener("submit", (event) => {
     };
 
     gestureClasses.push(newGesture);
+
+    saveGestureClasses();
+
     selectedGestureId = newGesture.id;
 
     renderGestureClasses();
@@ -439,6 +452,51 @@ function renderGestureClasses() {
     });
 
     updateCaptureButtonState();
+
+    updateTrainingDataButtonState();
+}
+
+function saveGestureClasses() {
+    const serializedGestureClasses =
+        JSON.stringify(gestureClasses);
+
+    localStorage.setItem(
+        GESTURE_STORAGE_KEY,
+        serializedGestureClasses
+    );
+}
+
+function loadGestureClasses() {
+    const serializedGestureClasses =
+        localStorage.getItem(GESTURE_STORAGE_KEY);
+
+    if (serializedGestureClasses === null) {
+        return;
+    }
+
+    try {
+        const savedGestureClasses =
+            JSON.parse(serializedGestureClasses);
+
+        if (!Array.isArray(savedGestureClasses)) {
+            return;
+        }
+
+        gestureClasses = savedGestureClasses;
+
+        if (gestureClasses.length > 0) {
+            selectedGestureId =
+                gestureClasses[0].id;
+
+            formStatus.textContent =
+                `Restored ${gestureClasses.length} saved gesture(s).`;
+        }
+    } catch (error) {
+        console.error(
+            "Could not load saved gestures:",
+            error
+        );
+    }
 }
 
 function updateCaptureButtonState() {
@@ -448,6 +506,19 @@ function updateCaptureButtonState() {
         selectedGestureId !== null;
 
     captureSampleButton.disabled = !canCapture;
+}
+
+function updateTrainingDataButtonState() {
+    const selectedGestureExists =
+        gestureClasses.some((gesture) => {
+            return gesture.id === selectedGestureId;
+        });
+
+    deleteGestureButton.disabled =
+        !selectedGestureExists;
+
+    clearGesturesButton.disabled =
+        gestureClasses.length === 0;
 }
 
 function normalizeLandmarks(landmarks) {
@@ -748,6 +819,8 @@ captureSampleButton.addEventListener("click", () => {
 
     selectedGesture.samples.push(sample);
 
+    saveGestureClasses();
+
     if (selectedGesture.samples.length >= 2) {
         const previousSample =
             selectedGesture.samples[selectedGesture.samples.length - 2];
@@ -769,4 +842,84 @@ captureSampleButton.addEventListener("click", () => {
         `The sample contains ${sample.length} values.`;
 });
 
+deleteGestureButton.addEventListener("click", () => {
+    const selectedGesture =
+        gestureClasses.find((gesture) => {
+            return gesture.id === selectedGestureId;
+        });
 
+    if (selectedGesture === undefined) {
+        return;
+    }
+
+    const deletionConfirmed =
+        window.confirm(
+            `Delete "${selectedGesture.name}" and all its samples?`
+        );
+
+    if (!deletionConfirmed) {
+        return;
+    }
+
+    gestureClasses =
+        gestureClasses.filter((gesture) => {
+            return gesture.id !== selectedGestureId;
+        });
+
+    selectedGestureId =
+        gestureClasses.length > 0
+            ? gestureClasses[0].id
+            : null;
+
+    saveGestureClasses();
+    renderGestureClasses();
+
+    stabilizePrediction(null);
+    lastTriggeredGestureId = null;
+
+    formStatus.textContent =
+        `"${selectedGesture.name}" was deleted.`;
+});
+
+clearGesturesButton.addEventListener("click", () => {
+    if (gestureClasses.length === 0) {
+        return;
+    }
+
+    const clearingConfirmed =
+        window.confirm(
+            `Delete all ${gestureClasses.length} trained gesture(s)?`
+        );
+
+    if (!clearingConfirmed) {
+        return;
+    }
+
+    gestureClasses = [];
+    selectedGestureId = null;
+
+    localStorage.removeItem(
+        GESTURE_STORAGE_KEY
+    );
+
+    stabilizePrediction(null);
+    lastTriggeredGestureId = null;
+
+    renderGestureClasses();
+
+    updatePredictionDisplay(
+        null,
+        "Training cleared"
+    );
+
+    formStatus.textContent =
+        "All saved gesture training data was deleted.";
+
+    actionFeedback.textContent =
+        "Waiting for new training data...";
+});
+
+
+
+loadGestureClasses();
+renderGestureClasses();
