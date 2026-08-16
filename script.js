@@ -94,6 +94,8 @@ let candidateFrameCount = 0;
 
 const REQUIRED_STABLE_FRAMES = 8;
 
+const MAXIMUM_GESTURE_DISTANCE = 0.45;
+
 const demoCards = [
     {
         title: "Welcome to KRIYA",
@@ -265,19 +267,42 @@ function predictWebcam() {
             const rawPrediction =
                 classifyGesture(liveSample, 3);
 
-            const stablePrediction =
-                stabilizePrediction(rawPrediction);
+            const predictionIsUnknown =
+                rawPrediction !== null &&
+                rawPrediction.nearestDistance >
+                MAXIMUM_GESTURE_DISTANCE;
 
-            if (rawPrediction === null) {
-                updatePredictionDisplay(null);
-            } else if (stablePrediction === null) {
+            if (predictionIsUnknown) {
+                stabilizePrediction(null);
+                lastTriggeredGestureId = null;
+
                 updatePredictionDisplay(
                     null,
-                    "Analyzing gesture..."
+                    "Unknown gesture"
                 );
+
+                predictionConfidence.textContent =
+                    `Distance: ${rawPrediction.nearestDistance.toFixed(3)} ` +
+                    `(limit: ${MAXIMUM_GESTURE_DISTANCE})`;
+
+                predictionAction.textContent =
+                    "Action: blocked";
+
             } else {
-                updatePredictionDisplay(stablePrediction);
-                tryTriggerAction(stablePrediction);
+                const stablePrediction =
+                    stabilizePrediction(rawPrediction);
+
+                if (rawPrediction === null) {
+                    updatePredictionDisplay(null);
+                } else if (stablePrediction === null) {
+                    updatePredictionDisplay(
+                        null,
+                        "Analyzing gesture..."
+                    );
+                } else {
+                    updatePredictionDisplay(stablePrediction);
+                    tryTriggerAction(stablePrediction);
+                }
             }
 
             updateCaptureButtonState();
@@ -620,6 +645,7 @@ function classifyGesture(sample, k = 3) {
     return {
         gestureClass: winningGesture,
         confidence: highestVotes / nearestSamples.length,
+        nearestDistance: nearestSamples[0].distance,
         nearestSamples: nearestSamples
     };
 }
@@ -664,11 +690,15 @@ function updatePredictionDisplay(
     const confidencePercentage =
         Math.round(prediction.confidence * 100);
 
+    const formattedDistance =
+        prediction.nearestDistance.toFixed(3);
+
     predictionLabel.textContent =
         prediction.gestureClass.name;
 
     predictionConfidence.textContent =
-        `Confidence: ${confidencePercentage}%`;
+        `Confidence: ${confidencePercentage}% ` +
+        `• Distance: ${formattedDistance}`;
 
     predictionAction.textContent =
         `Action: ${prediction.gestureClass.action}`;
