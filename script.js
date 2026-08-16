@@ -13,6 +13,15 @@ const captureSampleButton =
 const landmarkCanvas = document.querySelector("#landmark-canvas");
 const canvasContext = landmarkCanvas.getContext("2d");
 
+const predictionLabel =
+    document.querySelector("#prediction-label");
+
+const predictionConfidence =
+    document.querySelector("#prediction-confidence");
+
+const predictionAction =
+    document.querySelector("#prediction-action");
+
 const HAND_CONNECTIONS = [
     // Thumb
     [0, 1],
@@ -180,6 +189,15 @@ function predictWebcam() {
             const landmarkCount = results.landmarks[0].length;
 
             latestLandmarks = results.landmarks[0];
+
+            const liveSample =
+                normalizeLandmarks(latestLandmarks);
+
+            const prediction =
+                classifyGesture(liveSample, 3);
+
+            updatePredictionDisplay(prediction);
+
             updateCaptureButtonState();
 
             drawHandLandmarks(results.landmarks[0]);
@@ -188,6 +206,12 @@ function predictWebcam() {
                 `Hand detected with ${landmarkCount} landmarks.`;
         } else {
             latestLandmarks = null;
+
+            updatePredictionDisplay(
+                null,
+                "No hand detected"
+            );
+
             updateCaptureButtonState();
 
             clearLandmarkCanvas();
@@ -376,6 +400,101 @@ function normalizeLandmarks(landmarks) {
     });
 }
 
+function calculateDistance(sampleA, sampleB) {
+    let squaredDifferenceTotal = 0;
+
+    for (let index = 0; index < sampleA.length; index++) {
+        const difference = sampleA[index] - sampleB[index];
+        squaredDifferenceTotal += difference ** 2;
+    }
+
+    return Math.sqrt(squaredDifferenceTotal);
+}
+
+function findNearestSamples(sample) {
+    const comparisons = [];
+
+    gestureClasses.forEach((gestureClass) => {
+        gestureClass.samples.forEach((trainingSample) => {
+            const distance =
+                calculateDistance(sample, trainingSample);
+
+            comparisons.push({
+                gestureClass: gestureClass,
+                distance: distance
+            });
+        });
+    });
+
+    comparisons.sort((comparisonA, comparisonB) => {
+        return comparisonA.distance - comparisonB.distance;
+    });
+
+    return comparisons;
+}
+
+function classifyGesture(sample, k = 3) {
+    const comparisons = findNearestSamples(sample);
+
+    if (comparisons.length === 0) {
+        return null;
+    }
+
+    const nearestSamples = comparisons.slice(0, k);
+    const voteCounts = {};
+
+    nearestSamples.forEach((comparison) => {
+        const gestureId = comparison.gestureClass.id;
+
+        voteCounts[gestureId] =
+            (voteCounts[gestureId] || 0) + 1;
+    });
+
+    let winningGesture = nearestSamples[0].gestureClass;
+    let highestVotes = voteCounts[winningGesture.id];
+
+    nearestSamples.forEach((comparison) => {
+        const candidateGesture = comparison.gestureClass;
+        const candidateVotes = voteCounts[candidateGesture.id];
+
+        if (candidateVotes > highestVotes) {
+            winningGesture = candidateGesture;
+            highestVotes = candidateVotes;
+        }
+    });
+
+    return {
+        gestureClass: winningGesture,
+        confidence: highestVotes / nearestSamples.length,
+        nearestSamples: nearestSamples
+    };
+}
+
+function updatePredictionDisplay(
+    prediction,
+    emptyMessage = "Not trained yet"
+) {
+    if (prediction === null) {
+        predictionLabel.textContent = emptyMessage;
+        predictionConfidence.textContent = "Confidence: --";
+        predictionAction.textContent = "Action: --";
+
+        return;
+    }
+
+    const confidencePercentage =
+        Math.round(prediction.confidence * 100);
+
+    predictionLabel.textContent =
+        prediction.gestureClass.name;
+
+    predictionConfidence.textContent =
+        `Confidence: ${confidencePercentage}%`;
+
+    predictionAction.textContent =
+        `Action: ${prediction.gestureClass.action}`;
+}
+
 captureSampleButton.addEventListener("click", () => {
     const selectedGesture = gestureClasses.find((gesture) => {
         return gesture.id === selectedGestureId;
@@ -393,6 +512,19 @@ captureSampleButton.addEventListener("click", () => {
     console.log("Normalized sample:", sample);
 
     selectedGesture.samples.push(sample);
+
+    if (selectedGesture.samples.length >= 2) {
+        const previousSample =
+            selectedGesture.samples[selectedGesture.samples.length - 2];
+
+        const distanceFromPrevious =
+            calculateDistance(sample, previousSample);
+
+        console.log(
+            "Distance from previous sample:",
+            distanceFromPrevious
+        );
+    }
 
     renderGestureClasses();
 
