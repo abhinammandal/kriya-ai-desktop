@@ -62,6 +62,10 @@ let handLandmarker = null;
 let animationFrameId = null;
 let lastVideoTime = -1;
 let latestLandmarks = null;
+let candidateGestureId = null;
+let candidateFrameCount = 0;
+
+const REQUIRED_STABLE_FRAMES = 8;
 
 console.log("KRIYA JavaScript is connected.");
 
@@ -161,6 +165,14 @@ function stopCamera() {
     cameraStream = null;
 
     latestLandmarks = null;
+
+    stabilizePrediction(null);
+
+    updatePredictionDisplay(
+        null,
+        "Camera is off"
+    );
+
     updateCaptureButtonState();
 
     cameraPlaceholder.hidden = false;
@@ -193,10 +205,22 @@ function predictWebcam() {
             const liveSample =
                 normalizeLandmarks(latestLandmarks);
 
-            const prediction =
+            const rawPrediction =
                 classifyGesture(liveSample, 3);
 
-            updatePredictionDisplay(prediction);
+            const stablePrediction =
+                stabilizePrediction(rawPrediction);
+
+            if (rawPrediction === null) {
+                updatePredictionDisplay(null);
+            } else if (stablePrediction === null) {
+                updatePredictionDisplay(
+                    null,
+                    "Analyzing gesture..."
+                );
+            } else {
+                updatePredictionDisplay(stablePrediction);
+            }
 
             updateCaptureButtonState();
 
@@ -206,6 +230,8 @@ function predictWebcam() {
                 `Hand detected with ${landmarkCount} landmarks.`;
         } else {
             latestLandmarks = null;
+
+            stabilizePrediction(null);
 
             updatePredictionDisplay(
                 null,
@@ -468,6 +494,31 @@ function classifyGesture(sample, k = 3) {
         confidence: highestVotes / nearestSamples.length,
         nearestSamples: nearestSamples
     };
+}
+
+function stabilizePrediction(prediction) {
+    if (prediction === null) {
+        candidateGestureId = null;
+        candidateFrameCount = 0;
+
+        return null;
+    }
+
+    const predictedGestureId =
+        prediction.gestureClass.id;
+
+    if (predictedGestureId === candidateGestureId) {
+        candidateFrameCount += 1;
+    } else {
+        candidateGestureId = predictedGestureId;
+        candidateFrameCount = 1;
+    }
+
+    if (candidateFrameCount < REQUIRED_STABLE_FRAMES) {
+        return null;
+    }
+
+    return prediction;
 }
 
 function updatePredictionDisplay(
