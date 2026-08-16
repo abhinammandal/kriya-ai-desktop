@@ -363,3 +363,148 @@ button:disabled {
     color: var(--muted-text);
 }
 
+.action-playground {
+    margin-top: 2.5rem;
+    padding: 2rem;
+
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+
+    background-color: var(--surface);
+}
+
+.section-description {
+    max-width: 42rem;
+    color: var(--muted-text);
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+
+    margin-top: 1.5rem;
+}
+
+.action-grid article {
+    min-height: 14rem;
+    padding: 1.5rem;
+
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+
+    background-color: var(--background);
+
+    transition:
+        border-color 200ms ease,
+        background-color 200ms ease,
+        transform 200ms ease,
+        box-shadow 200ms ease;
+}
+
+.demo-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+#card-position {
+    margin-bottom: auto;
+
+    color: var(--accent);
+
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.demo-card h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+
+.media-demo,
+.light-demo {
+    display: grid;
+    place-items: center;
+
+    text-align: center;
+}
+
+.media-icon,
+.light-orb {
+    width: 5rem;
+    height: 5rem;
+}
+
+.media-icon {
+    display: grid;
+    place-items: center;
+
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+
+    color: var(--accent);
+
+    font-size: 2rem;
+}
+
+.media-demo.is-playing {
+    border-color: var(--accent);
+}
+
+.media-demo.is-playing .media-icon {
+    color: var(--background);
+    background-color: var(--accent);
+
+    animation: media-pulse 1s ease-in-out infinite;
+}
+
+.light-orb {
+    border: 2px solid var(--muted-text);
+    border-radius: 50%;
+
+    background-color: transparent;
+}
+
+.light-demo.is-on {
+    border-color: #ffe082;
+    background-color: #272510;
+}
+
+.light-demo.is-on .light-orb {
+    border-color: #fff3b0;
+    background-color: #ffe082;
+
+    box-shadow:
+        0 0 1rem #ffe082,
+        0 0 3rem rgb(255 224 130 / 55%);
+}
+
+#action-feedback {
+    margin: 1.25rem 0 0;
+    padding: 1rem;
+
+    border-left: 0.25rem solid var(--accent);
+
+    color: var(--muted-text);
+    background-color: var(--background);
+}
+
+@keyframes media-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+@media (max-width: 800px) {
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+}

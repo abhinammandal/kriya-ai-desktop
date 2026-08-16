@@ -22,6 +22,33 @@ const predictionConfidence =
 const predictionAction =
     document.querySelector("#prediction-action");
 
+const cardPosition =
+    document.querySelector("#card-position");
+
+const cardTitle =
+    document.querySelector("#card-title");
+
+const cardDescription =
+    document.querySelector("#card-description");
+
+const mediaDemo =
+    document.querySelector("#media-demo");
+
+const mediaIcon =
+    document.querySelector(".media-icon");
+
+const playerStatus =
+    document.querySelector("#player-status");
+
+const lightDemo =
+    document.querySelector("#light-demo");
+
+const lightStatus =
+    document.querySelector("#light-status");
+
+const actionFeedback =
+    document.querySelector("#action-feedback");
+
 const HAND_CONNECTIONS = [
     // Thumb
     [0, 1],
@@ -66,6 +93,33 @@ let candidateGestureId = null;
 let candidateFrameCount = 0;
 
 const REQUIRED_STABLE_FRAMES = 8;
+
+const demoCards = [
+    {
+        title: "Welcome to KRIYA",
+        description:
+            "Teach the system a hand gesture and decide what it should control."
+    },
+    {
+        title: "Private by design",
+        description:
+            "Camera landmarks are processed inside your browser without uploading images."
+    },
+    {
+        title: "AI shaped by its user",
+        description:
+            "The same hand pose can perform different actions because you define its meaning."
+    }
+];
+
+let currentCardIndex = 0;
+let isMediaPlaying = false;
+let isVirtualLightOn = false;
+
+let lastTriggeredGestureId = null;
+let lastActionTimestamp = 0;
+
+const ACTION_COOLDOWN_MS = 1200;
 
 console.log("KRIYA JavaScript is connected.");
 
@@ -220,6 +274,7 @@ function predictWebcam() {
                 );
             } else {
                 updatePredictionDisplay(stablePrediction);
+                tryTriggerAction(stablePrediction);
             }
 
             updateCaptureButtonState();
@@ -232,6 +287,8 @@ function predictWebcam() {
             latestLandmarks = null;
 
             stabilizePrediction(null);
+
+            lastTriggeredGestureId = null;
 
             updatePredictionDisplay(
                 null,
@@ -544,6 +601,133 @@ function updatePredictionDisplay(
 
     predictionAction.textContent =
         `Action: ${prediction.gestureClass.action}`;
+}
+
+function renderCurrentCard() {
+    const currentCard =
+        demoCards[currentCardIndex];
+
+    cardPosition.textContent =
+        `Card ${currentCardIndex + 1} of ${demoCards.length}`;
+
+    cardTitle.textContent =
+        currentCard.title;
+
+    cardDescription.textContent =
+        currentCard.description;
+}
+
+function showNextCard() {
+    currentCardIndex =
+        (currentCardIndex + 1) % demoCards.length;
+
+    renderCurrentCard();
+}
+
+function showPreviousCard() {
+    currentCardIndex =
+        (
+            currentCardIndex -
+            1 +
+            demoCards.length
+        ) % demoCards.length;
+
+    renderCurrentCard();
+}
+
+function toggleMediaPlayback() {
+    isMediaPlaying = !isMediaPlaying;
+
+    mediaDemo.classList.toggle(
+        "is-playing",
+        isMediaPlaying
+    );
+
+    mediaIcon.textContent =
+        isMediaPlaying ? "❚❚" : "▶";
+
+    playerStatus.textContent =
+        isMediaPlaying ? "Playing" : "Paused";
+}
+
+function toggleVirtualLight() {
+    isVirtualLightOn = !isVirtualLightOn;
+
+    lightDemo.classList.toggle(
+        "is-on",
+        isVirtualLightOn
+    );
+
+    lightStatus.textContent =
+        isVirtualLightOn ? "On" : "Off";
+}
+
+function performAction(gestureClass) {
+    let feedbackMessage = "";
+
+    switch (gestureClass.action) {
+        case "next":
+            showNextCard();
+            feedbackMessage = "Moved to the next card.";
+            break;
+
+        case "previous":
+            showPreviousCard();
+            feedbackMessage = "Moved to the previous card.";
+            break;
+
+        case "play":
+            toggleMediaPlayback();
+
+            feedbackMessage = isMediaPlaying
+                ? "Started the virtual soundtrack."
+                : "Paused the virtual soundtrack.";
+            break;
+
+        case "light":
+            toggleVirtualLight();
+
+            feedbackMessage = isVirtualLightOn
+                ? "Turned the virtual light on."
+                : "Turned the virtual light off.";
+            break;
+
+        case "none":
+            feedbackMessage =
+                "Neutral gesture recognized. No action performed.";
+            break;
+
+        default:
+            feedbackMessage =
+                "This gesture has no supported action.";
+    }
+
+    actionFeedback.textContent =
+        `${gestureClass.name}: ${feedbackMessage}`;
+}
+
+function tryTriggerAction(prediction) {
+    const gestureId =
+        prediction.gestureClass.id;
+
+    const currentTimestamp =
+        Date.now();
+
+    const cooldownHasFinished =
+        currentTimestamp - lastActionTimestamp >=
+        ACTION_COOLDOWN_MS;
+
+    const isNewGesture =
+        gestureId !== lastTriggeredGestureId;
+
+    if (!cooldownHasFinished || !isNewGesture) {
+        return;
+    }
+
+    performAction(prediction.gestureClass);
+
+    lastTriggeredGestureId = gestureId;
+    lastActionTimestamp = currentTimestamp;
 }
 
 captureSampleButton.addEventListener("click", () => {
