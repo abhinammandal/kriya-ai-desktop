@@ -803,6 +803,25 @@ function performAction(gestureClass) {
                 "This gesture has no supported action.";
     }
 
+    if (window.kriyaDesktop !== undefined) {
+        window.kriyaDesktop
+            .performAction(gestureClass.action)
+            .then((result) => {
+                if (!result.success) {
+                    console.error(
+                        "Desktop action was not completed:",
+                        result.error
+                    );
+                }
+            })
+            .catch((error) => {
+                console.error(
+                    "Desktop action request failed:",
+                    error
+                );
+            });
+    }
+
     actionFeedback.textContent =
         `${gestureClass.name}: ${feedbackMessage}`;
 }

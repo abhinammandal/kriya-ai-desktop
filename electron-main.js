@@ -1,15 +1,40 @@
 const {
     app,
     BrowserWindow,
+    ipcMain,
     Menu,
     Tray
 } = require("electron");
 
 const path = require("node:path");
 
+const {
+    performDesktopAction
+} = require("./desktop-actions");
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+
+ipcMain.handle(
+    "desktop-action",
+    async (event, actionName) => {
+        try {
+            return await performDesktopAction(actionName);
+        } catch (error) {
+            console.error(
+                "Desktop action failed:",
+                error
+            );
+
+            return {
+                success: false,
+                actionName: actionName,
+                error: error.message
+            };
+        }
+    }
+);
 
 function createMainWindow() {
     mainWindow = new BrowserWindow({
@@ -18,6 +43,7 @@ function createMainWindow() {
         minWidth: 900,
         minHeight: 650,
         webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
             nodeIntegration: false,
             backgroundThrottling: false
