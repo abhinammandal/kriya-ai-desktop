@@ -1,0 +1,13 @@
+# Installed Node.js packages
+node_modules/
+
+# Packaged desktop application
+dist/
+release/
+
+# Development log files
+*.log
+
+# Operating-system files
+.DS_Store
+Thumbs.db

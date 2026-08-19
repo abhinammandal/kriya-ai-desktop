@@ -1,0 +1,24 @@
+{
+  "name": "kriya-ai-desktop",
+  "version": "2.0.0",
+  "description": "A personalized background gesture controller for Windows",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhinammandal/kriya-ai-desktop.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/abhinammandal/kriya-ai-desktop/issues"
+  },
+  "homepage": "https://github.com/abhinammandal/kriya-ai-desktop#readme",
+  "devDependencies": {
+    "electron": "^43.4.1"
+  }
+}
