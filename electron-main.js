@@ -9,7 +9,9 @@ const {
 const path = require("node:path");
 
 const {
-    performDesktopAction
+    performDesktopAction,
+    startDesktopActions,
+    stopDesktopActions
 } = require("./desktop-actions");
 
 let mainWindow = null;
@@ -21,16 +23,21 @@ ipcMain.handle(
     async (event, actionName) => {
         try {
             return await performDesktopAction(actionName);
-        } catch (error) {
+                } catch (error) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Unknown desktop action error.";
+
             console.error(
                 "Desktop action failed:",
-                error
+                errorMessage
             );
 
             return {
                 success: false,
                 actionName: actionName,
-                error: error.message
+                error: errorMessage
             };
         }
     }
@@ -124,6 +131,7 @@ async function createTray() {
 }
 
 app.whenReady().then(async () => {
+    startDesktopActions();
     createMainWindow();
     await createTray();
 
@@ -134,4 +142,5 @@ app.whenReady().then(async () => {
 
 app.on("before-quit", () => {
     isQuitting = true;
+    stopDesktopActions();
 });

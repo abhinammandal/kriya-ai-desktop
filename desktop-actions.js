@@ -2,114 +2,218 @@ const {
     spawn
 } = require("node:child_process");
 
-const DESKTOP_ACTIONS = Object.freeze({
-    next: `
-        Add-Type -AssemblyName System.Windows.Forms;
-        [System.Windows.Forms.SendKeys]::SendWait('{RIGHT}');
-    `,
+const path = require("node:path");
 
-    previous: `
-        Add-Type -AssemblyName System.Windows.Forms;
-        [System.Windows.Forms.SendKeys]::SendWait('{LEFT}');
-    `,
+const SUPPORTED_DESKTOP_ACTIONS = new Set([
+    "next",
+    "previous",
+    "play"
+]);
 
-    play: `
-        $nativeCode = @'
-        [DllImport("user32.dll")]
-        public static extern void keybd_event(
-            byte virtualKey,
-            byte scanCode,
-            uint flags,
-            UIntPtr extraInfo
-        );
-'@;
+let inputWorker = null;
+let outputBuffer = "";
 
-                Add-Type -MemberDefinition $nativeCode -Name NativeKeyboard -Namespace Kriya;
+const pendingRequests = [];
 
-        [Kriya.NativeKeyboard]::keybd_event(
-            0xB3,
-            0,
-            0,
-            [UIntPtr]::Zero
-        );
-
-        [Kriya.NativeKeyboard]::keybd_event(
-            0xB3,
-            0,
-            2,
-            [UIntPtr]::Zero
-        );
-    `
-});
-
-function runPowerShell(script) {
-    return new Promise((resolve, reject) => {
-        const childProcess = spawn(
-            "powershell.exe",
-            [
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                script
-            ],
-            {
-                windowsHide: true
-            }
-        );
-
-        let errorOutput = "";
-
-        childProcess.stderr.on("data", (data) => {
-            errorOutput += data.toString();
-        });
-
-        childProcess.on("error", (error) => {
-            reject(error);
-        });
-
-        childProcess.on("close", (exitCode) => {
-            if (exitCode === 0) {
-                resolve();
-                return;
-            }
-
-            reject(
-                new Error(
-                    errorOutput ||
-                    `Windows action failed with code ${exitCode}.`
-                )
-            );
-        });
-    });
+function rejectPendingRequests(error) {
+    while (pendingRequests.length > 0) {
+        const request = pendingRequests.shift();
+        request.reject(error);
+    }
 }
 
-async function performDesktopAction(actionName) {
+function handleWorkerOutput(data) {
+    outputBuffer += data.toString();
+
+    let newlineIndex = outputBuffer.indexOf("\n");
+
+    while (newlineIndex !== -1) {
+        const outputLine = outputBuffer
+            .slice(0, newlineIndex)
+            .trim();
+
+        outputBuffer = outputBuffer.slice(
+            newlineIndex + 1
+        );
+
+        if (outputLine !== "") {
+            const request = pendingRequests.shift();
+
+            if (request !== undefined) {
+                if (outputLine.startsWith("OK:")) {
+                    request.resolve({
+                        success: true,
+                        skipped: false,
+                        actionName: request.actionName
+                    });
+                } else {
+                    request.reject(
+                        new Error(
+                            outputLine.replace(
+                                /^ERROR:/,
+                                ""
+                            )
+                        )
+                    );
+                }
+            }
+        }
+
+        newlineIndex = outputBuffer.indexOf("\n");
+    }
+}
+
+function startWorker() {
+    if (
+        inputWorker !== null &&
+        inputWorker.exitCode === null
+    ) {
+        return inputWorker;
+    }
+
+    const workerScriptPath = path.join(
+        __dirname,
+        "windows-input.ps1"
+    );
+
+    const worker = spawn(
+        "powershell.exe",
+        [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            workerScriptPath
+        ],
+        {
+            windowsHide: true,
+            stdio: [
+                "pipe",
+                "pipe",
+                "pipe"
+            ]
+        }
+    );
+
+    inputWorker = worker;
+    outputBuffer = "";
+
+    worker.stdout.on("data", (data) => {
+        handleWorkerOutput(data);
+    });
+
+    worker.stderr.on("data", (data) => {
+        const errorMessage = data
+            .toString()
+            .trim();
+
+        if (errorMessage !== "") {
+            console.error(
+                "Windows input worker:",
+                errorMessage
+            );
+        }
+    });
+
+    worker.on("error", (error) => {
+        rejectPendingRequests(error);
+
+        if (inputWorker === worker) {
+            inputWorker = null;
+        }
+    });
+
+    worker.on("close", (exitCode) => {
+        rejectPendingRequests(
+            new Error(
+                `Windows input worker stopped with code ${exitCode}.`
+            )
+        );
+
+        if (inputWorker === worker) {
+            inputWorker = null;
+        }
+    });
+
+    return worker;
+}
+
+function startDesktopActions() {
+    startWorker();
+}
+
+function performDesktopAction(actionName) {
     if (actionName === "none" || actionName === "light") {
-        return {
+        return Promise.resolve({
             success: true,
             skipped: true,
             actionName: actionName
-        };
+        });
     }
 
-    const actionScript = DESKTOP_ACTIONS[actionName];
-
-    if (actionScript === undefined) {
-        throw new Error(
-            `Unsupported desktop action: ${actionName}`
+    if (!SUPPORTED_DESKTOP_ACTIONS.has(actionName)) {
+        return Promise.reject(
+            new Error(
+                `Unsupported desktop action: ${actionName}`
+            )
         );
     }
 
-    await runPowerShell(actionScript);
+    const worker = startWorker();
 
-    return {
-        success: true,
-        skipped: false,
-        actionName: actionName
-    };
+    return new Promise((resolve, reject) => {
+        const request = {
+            actionName: actionName,
+            resolve: resolve,
+            reject: reject
+        };
+
+        pendingRequests.push(request);
+
+                worker.stdin.write(
+            `${actionName}\n`,
+            (error) => {
+                if (error === undefined || error === null) {
+                    return;
+                }
+
+                const requestIndex =
+                    pendingRequests.indexOf(request);
+
+                if (requestIndex !== -1) {
+                    pendingRequests.splice(
+                        requestIndex,
+                        1
+                    );
+                }
+
+                reject(error);
+            }
+        );
+    });
+}
+
+function stopDesktopActions() {
+    if (inputWorker === null) {
+        return;
+    }
+
+    const worker = inputWorker;
+    inputWorker = null;
+
+    worker.stdin.end();
+
+    rejectPendingRequests(
+        new Error(
+            "KRIYA AI Desktop is shutting down."
+        )
+    );
 }
 
 module.exports = {
-    performDesktopAction
+    performDesktopAction,
+    startDesktopActions,
+    stopDesktopActions
 };

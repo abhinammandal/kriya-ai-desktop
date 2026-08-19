@@ -90,9 +90,9 @@ let animationFrameId = null;
 let lastVideoTime = -1;
 let latestLandmarks = null;
 let candidateGestureId = null;
-let candidateFrameCount = 0;
+let candidateStartTime = 0;
 
-const REQUIRED_STABLE_FRAMES = 8;
+const REQUIRED_STABLE_DURATION_MS = 350;
 
 const MAXIMUM_GESTURE_DISTANCE = 0.45;
 
@@ -653,7 +653,7 @@ function classifyGesture(sample, k = 3) {
 function stabilizePrediction(prediction) {
     if (prediction === null) {
         candidateGestureId = null;
-        candidateFrameCount = 0;
+        candidateStartTime = 0;
 
         return null;
     }
@@ -661,14 +661,22 @@ function stabilizePrediction(prediction) {
     const predictedGestureId =
         prediction.gestureClass.id;
 
-    if (predictedGestureId === candidateGestureId) {
-        candidateFrameCount += 1;
-    } else {
+    const currentTime = performance.now();
+
+    if (predictedGestureId !== candidateGestureId) {
         candidateGestureId = predictedGestureId;
-        candidateFrameCount = 1;
+        candidateStartTime = currentTime;
+
+        return null;
     }
 
-    if (candidateFrameCount < REQUIRED_STABLE_FRAMES) {
+    const stableDuration =
+        currentTime - candidateStartTime;
+
+    if (
+        stableDuration <
+        REQUIRED_STABLE_DURATION_MS
+    ) {
         return null;
     }
 
