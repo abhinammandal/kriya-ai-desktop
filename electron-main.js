@@ -1,6 +1,7 @@
 const {
     app,
     BrowserWindow,
+    globalShortcut,
     ipcMain,
     Menu,
     Tray
@@ -17,13 +18,22 @@ const {
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+let desktopControlEnabled = true;
 
 ipcMain.handle(
     "desktop-action",
     async (event, actionName) => {
+        if (!desktopControlEnabled) {
+            return {
+                success: true,
+                skipped: true,
+                actionName: actionName,
+                reason: "desktop-control-paused"
+            };
+        }
         try {
             return await performDesktopAction(actionName);
-                } catch (error) {
+        } catch (error) {
             const errorMessage =
                 error instanceof Error
                     ? error.message
@@ -82,17 +92,23 @@ function showMainWindow() {
     mainWindow.focus();
 }
 
-async function createTray() {
-    const trayIcon = await app.getFileIcon(
-        process.execPath,
-        {
-            size: "small"
-        }
+function toggleDesktopControl() {
+    desktopControlEnabled =
+        !desktopControlEnabled;
+
+    updateTrayMenu();
+
+    console.log(
+        desktopControlEnabled
+            ? "Desktop gesture control resumed."
+            : "Desktop gesture control paused."
     );
+}
 
-    tray = new Tray(trayIcon);
-
-    tray.setToolTip("KRIYA AI Desktop");
+function updateTrayMenu() {
+    if (tray === null) {
+        return;
+    }
 
     const trayMenu = Menu.buildFromTemplate([
         {
@@ -111,6 +127,17 @@ async function createTray() {
             type: "separator"
         },
         {
+            label: desktopControlEnabled
+                ? "Pause desktop control"
+                : "Resume desktop control",
+            click: () => {
+                toggleDesktopControl();
+            }
+        },
+        {
+            type: "separator"
+        },
+        {
             label: "Quit",
             click: () => {
                 isQuitting = true;
@@ -120,6 +147,25 @@ async function createTray() {
     ]);
 
     tray.setContextMenu(trayMenu);
+
+    tray.setToolTip(
+        desktopControlEnabled
+            ? "KRIYA AI Desktop — Control active"
+            : "KRIYA AI Desktop — Control paused"
+    );
+}
+
+async function createTray() {
+    const trayIcon = await app.getFileIcon(
+        process.execPath,
+        {
+            size: "small"
+        }
+    );
+
+    tray = new Tray(trayIcon);
+
+    updateTrayMenu();
 
     tray.on("click", () => {
         if (mainWindow.isVisible()) {
@@ -135,6 +181,20 @@ app.whenReady().then(async () => {
     createMainWindow();
     await createTray();
 
+    const shortcutRegistered =
+        globalShortcut.register(
+            "CommandOrControl+Shift+K",
+            () => {
+                toggleDesktopControl();
+            }
+        );
+
+    if (!shortcutRegistered) {
+        console.error(
+            "Could not register the desktop-control shortcut."
+        );
+    }
+
     app.on("activate", () => {
         showMainWindow();
     });
@@ -143,4 +203,8 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => {
     isQuitting = true;
     stopDesktopActions();
+});
+
+app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
 });
