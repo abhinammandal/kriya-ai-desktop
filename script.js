@@ -172,6 +172,41 @@ const PROFILE_ACTIONS = {
             value: "none",
             label: "Neutral — no action"
         }
+    ],
+
+    browser: [
+        {
+            value: "browser-back",
+            label: "Go back"
+        },
+        {
+            value: "browser-forward",
+            label: "Go forward"
+        },
+        {
+            value: "browser-scroll-down",
+            label: "Scroll down"
+        },
+        {
+            value: "browser-scroll-up",
+            label: "Scroll up"
+        },
+        {
+            value: "browser-refresh",
+            label: "Refresh page"
+        },
+        {
+            value: "play",
+            label: "Play or pause video — Media key"
+        },
+        {
+            value: "browser-space",
+            label: "Press Space — Focused player fallback"
+        },
+        {
+            value: "none",
+            label: "Neutral — no action"
+        }
     ]
 };
 

@@ -7,9 +7,18 @@ const path = require("node:path");
 const SUPPORTED_DESKTOP_ACTIONS = new Set([
     "next",
     "previous",
+
     "presentation-start",
     "presentation-end",
     "presentation-black",
+
+    "browser-back",
+    "browser-forward",
+    "browser-scroll-down",
+    "browser-scroll-up",
+    "browser-refresh",
+    "browser-space",
+
     "play"
 ]);
 

@@ -61,6 +61,48 @@ while ($true) {
                 break
             }
 
+            "browser-back" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "%{LEFT}"
+                )
+                break
+            }
+
+            "browser-forward" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "%{RIGHT}"
+                )
+                break
+            }
+
+            "browser-scroll-down" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "{PGDN}"
+                )
+                break
+            }
+
+            "browser-scroll-up" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "{PGUP}"
+                )
+                break
+            }
+
+            "browser-refresh" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "^r"
+                )
+                break
+            }
+
+            "browser-space" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "{SPACE}"
+                )
+                break
+            }
+
             "presentation-start" {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{F5}"
@@ -98,7 +140,7 @@ while ($true) {
     }
     catch {
         $errorMessage =
-            $_.Exception.Message -replace "[\r\n]+", " "
+        $_.Exception.Message -replace "[\r\n]+", " "
 
         [Console]::Out.WriteLine(
             "ERROR:$errorMessage"
