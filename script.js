@@ -49,6 +49,15 @@ const lightStatus =
 const actionFeedback =
     document.querySelector("#action-feedback");
 
+const listeningStatus =
+    document.querySelector("#listening-status");
+
+const listeningStatusText =
+    document.querySelector("#listening-status-text");
+
+const controlProfileSelect =
+    document.querySelector("#control-profile");
+
 const HAND_CONNECTIONS = [
     // Thumb
     [0, 1],
@@ -128,7 +137,92 @@ const ACTION_COOLDOWN_MS = 1200;
 const GESTURE_STORAGE_KEY =
     "kriya-trained-gestures";
 
+const PROFILE_STORAGE_KEY =
+    "kriya-control-profile";
+
+const AVAILABLE_PROFILES = new Set([
+    "presentation",
+    "browser",
+    "media"
+]);
+
+let activeProfile = "presentation";
+
 console.log("KRIYA JavaScript is connected.");
+
+function loadControlProfile() {
+    const savedProfile =
+        localStorage.getItem(
+            PROFILE_STORAGE_KEY
+        );
+
+    if (
+        savedProfile !== null &&
+        AVAILABLE_PROFILES.has(savedProfile)
+    ) {
+        activeProfile = savedProfile;
+    }
+
+    controlProfileSelect.value =
+        activeProfile;
+}
+
+function changeControlProfile(profileName) {
+    if (!AVAILABLE_PROFILES.has(profileName)) {
+        return;
+    }
+
+    activeProfile = profileName;
+
+    localStorage.setItem(
+        PROFILE_STORAGE_KEY,
+        activeProfile
+    );
+
+    const firstGestureInProfile =
+        gestureClasses.find((gesture) => {
+            return gesture.profile === activeProfile;
+        });
+
+    selectedGestureId =
+        firstGestureInProfile !== undefined
+            ? firstGestureInProfile.id
+            : null;
+
+    stabilizePrediction(null);
+    lastTriggeredGestureId = null;
+
+    renderGestureClasses();
+
+    updatePredictionDisplay(
+        null,
+        "Profile changed"
+    );
+
+    formStatus.textContent =
+        firstGestureInProfile !== undefined
+            ? `Showing gestures from the ${activeProfile} profile.`
+            : `No gestures have been trained for the ${activeProfile} profile.`;
+
+    actionFeedback.textContent =
+        `Active control profile: ${activeProfile}.`;
+}
+
+controlProfileSelect.addEventListener(
+    "change",
+    () => {
+        const selectedProfile =
+            controlProfileSelect.value;
+
+        controlProfileSelect.blur();
+
+        changeControlProfile(
+            selectedProfile
+        );
+    }
+);
+
+loadControlProfile();
 
 async function initializeHandLandmarker() {
     cameraButton.disabled = true;
@@ -176,7 +270,6 @@ async function initializeHandLandmarker() {
     }
 }
 
-initializeHandLandmarker();
 
 if (window.kriyaDesktop !== undefined) {
     window.kriyaDesktop
@@ -314,9 +407,31 @@ function stopCamera() {
 
 }
 
+function updateListeningStatus(enabled) {
+    listeningStatus.classList.toggle(
+        "is-active",
+        enabled
+    );
+
+    listeningStatus.classList.toggle(
+        "is-paused",
+        !enabled
+    );
+
+    listeningStatusText.textContent =
+        enabled
+            ? "Listening"
+            : "Paused";
+}
+
+
 async function applyDesktopControlState(state) {
     desktopControlEnabled =
         Boolean(state.enabled);
+
+    updateListeningStatus(
+        desktopControlEnabled
+    );
 
     if (!desktopControlEnabled) {
         if (cameraStream !== null) {
@@ -539,6 +654,7 @@ gestureForm.addEventListener("submit", (event) => {
         id: crypto.randomUUID(),
         name: gestureName,
         action: selectedAction,
+        profile: activeProfile,
         samples: []
     };
 
@@ -559,7 +675,12 @@ gestureForm.addEventListener("submit", (event) => {
 function renderGestureClasses() {
     gestureList.innerHTML = "";
 
-    gestureClasses.forEach((gesture) => {
+    const profileGestures =
+        gestureClasses.filter((gesture) => {
+            return gesture.profile === activeProfile;
+        });
+
+    profileGestures.forEach((gesture) => {
         const listItem = document.createElement("li");
         const selectButton = document.createElement("button");
 
@@ -604,7 +725,9 @@ function saveGestureClasses() {
 
 function loadGestureClasses() {
     const serializedGestureClasses =
-        localStorage.getItem(GESTURE_STORAGE_KEY);
+        localStorage.getItem(
+            GESTURE_STORAGE_KEY
+        );
 
     if (serializedGestureClasses === null) {
         return;
@@ -612,20 +735,55 @@ function loadGestureClasses() {
 
     try {
         const savedGestureClasses =
-            JSON.parse(serializedGestureClasses);
+            JSON.parse(
+                serializedGestureClasses
+            );
 
         if (!Array.isArray(savedGestureClasses)) {
             return;
         }
 
-        gestureClasses = savedGestureClasses;
+        let savedDataWasMigrated = false;
 
-        if (gestureClasses.length > 0) {
-            selectedGestureId =
-                gestureClasses[0].id;
+        gestureClasses =
+            savedGestureClasses.map((gesture) => {
+                if (
+                    AVAILABLE_PROFILES.has(
+                        gesture.profile
+                    )
+                ) {
+                    return gesture;
+                }
 
+                savedDataWasMigrated = true;
+
+                return {
+                    ...gesture,
+                    profile: "presentation"
+                };
+            });
+
+        if (savedDataWasMigrated) {
+            saveGestureClasses();
+        }
+
+        const profileGestures =
+            gestureClasses.filter((gesture) => {
+                return gesture.profile === activeProfile;
+            });
+
+        selectedGestureId =
+            profileGestures.length > 0
+                ? profileGestures[0].id
+                : null;
+
+        if (profileGestures.length > 0) {
             formStatus.textContent =
-                `Restored ${gestureClasses.length} saved gesture(s).`;
+                `Restored ${profileGestures.length} saved gesture(s) ` +
+                `for the ${activeProfile} profile.`;
+        } else {
+            formStatus.textContent =
+                `No saved gestures in the ${activeProfile} profile.`;
         }
     } catch (error) {
         console.error(
@@ -704,17 +862,21 @@ function calculateDistance(sampleA, sampleB) {
 function findNearestSamples(sample) {
     const comparisons = [];
 
-    gestureClasses.forEach((gestureClass) => {
-        gestureClass.samples.forEach((trainingSample) => {
-            const distance =
-                calculateDistance(sample, trainingSample);
+    gestureClasses
+        .filter((gestureClass) => {
+            return gestureClass.profile === activeProfile;
+        })
+        .forEach((gestureClass) => {
+            gestureClass.samples.forEach((trainingSample) => {
+                const distance =
+                    calculateDistance(sample, trainingSample);
 
-            comparisons.push({
-                gestureClass: gestureClass,
-                distance: distance
+                comparisons.push({
+                    gestureClass: gestureClass,
+                    distance: distance
+                });
             });
         });
-    });
 
     comparisons.sort((comparisonA, comparisonB) => {
         return comparisonA.distance - comparisonB.distance;

@@ -6,14 +6,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>KRIYA AI</title>
+
     <link rel="stylesheet" href="styles.css">
+
     <script type="module" src="script.js"></script>
 </head>
 
 <body>
-    <header>
-        <h1>KRIYA AI</h1>
-        <p>Teach a gesture. Trigger an action.</p>
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true">
+                K
+            </div>
+
+            <div class="brand-copy">
+                <h1>KRIYA AI</h1>
+
+                <p>
+                    Adaptive gesture control for your desktop
+                </p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <div id="listening-status" class="listening-status is-active" role="status">
+                <span class="status-dot" aria-hidden="true"></span>
+
+                <span id="listening-status-text">
+                    Listening
+                </span>
+            </div>
+
+            <label class="profile-selector" for="control-profile">
+                <span>Control profile</span>
+
+                <select id="control-profile" name="controlProfile">
+                    <option value="presentation">
+                        Presentation
+                    </option>
+
+                    <option value="browser">
+                        Browser
+                    </option>
+
+                    <option value="media">
+                        Media
+                    </option>
+                </select>
+            </label>
+        </div>
     </header>
 
     <main>
@@ -21,7 +62,9 @@
             <header class="section-heading">
                 <p>Adaptive Gesture Intelligence</p>
 
-                <h2 id="studio-title">Personal Gesture Studio</h2>
+                <h2 id="studio-title">
+                    Personal Gesture Studio
+                </h2>
 
                 <p>
                     Show a hand pose, give it a name and decide
@@ -31,15 +74,18 @@
 
             <div class="studio-grid">
                 <article class="panel camera-panel" aria-labelledby="camera-title">
-                    <h3 id="camera-title">1. Show your gesture</h3>
+                    <h3 id="camera-title">
+                        1. Show your gesture
+                    </h3>
 
                     <div class="camera-preview">
-                        <video id="camera-video" autoplay muted playsinline>
-                        </video>
+                        <video id="camera-video" autoplay muted playsinline></video>
 
                         <canvas id="landmark-canvas" aria-hidden="true"></canvas>
 
-                        <p id="camera-placeholder">Camera is currently off</p>
+                        <p id="camera-placeholder">
+                            Camera is currently off
+                        </p>
                     </div>
 
                     <div class="camera-actions">
@@ -58,25 +104,47 @@
                 </article>
 
                 <article class="panel training-panel" aria-labelledby="training-title">
-                    <h3 id="training-title">2. Describe your gesture</h3>
+                    <h3 id="training-title">
+                        2. Describe your gesture
+                    </h3>
 
                     <form id="gesture-form">
-                        <label for="gesture-name">Gesture name</label>
+                        <label for="gesture-name">
+                            Gesture name
+                        </label>
 
                         <input id="gesture-name" name="gestureName" type="text" placeholder="For example: Open palm"
                             required>
 
-                        <label for="gesture-action">Choose an action</label>
+                        <label for="gesture-action">
+                            Choose an action
+                        </label>
 
                         <select id="gesture-action" name="gestureAction">
-                            <option value="next">Next card</option>
-                            <option value="previous">Previous card</option>
-                            <option value="play">Play or pause</option>
-                            <option value="light">Toggle virtual light</option>
-                            <option value="none">Neutral — no action</option>
+                            <option value="next">
+                                Next card
+                            </option>
+
+                            <option value="previous">
+                                Previous card
+                            </option>
+
+                            <option value="play">
+                                Play or pause
+                            </option>
+
+                            <option value="light">
+                                Toggle virtual light
+                            </option>
+
+                            <option value="none">
+                                Neutral — no action
+                            </option>
                         </select>
 
-                        <button type="submit">Create gesture</button>
+                        <button type="submit">
+                            Create gesture
+                        </button>
                     </form>
 
                     <p id="form-status" role="status">
@@ -94,12 +162,14 @@
                             Clear all training
                         </button>
                     </div>
-
                 </article>
             </div>
         </section>
+
         <section class="prediction-panel" aria-labelledby="prediction-title">
-            <p class="eyebrow">LIVE AI OUTPUT</p>
+            <p class="eyebrow">
+                LIVE AI OUTPUT
+            </p>
 
             <h2 id="prediction-title">
                 3. Test your trained gestures
@@ -123,6 +193,7 @@
                 </p>
             </div>
         </section>
+
         <section class="action-playground" aria-labelledby="action-playground-title">
             <p class="eyebrow">
                 GESTURE-CONTROLLED SANDBOX
@@ -139,7 +210,9 @@
 
             <div class="action-grid">
                 <article class="demo-card" id="demo-card">
-                    <p id="card-position">Card 1 of 3</p>
+                    <p id="card-position">
+                        Card 1 of 3
+                    </p>
 
                     <h3 id="card-title">
                         Welcome to KRIYA
@@ -181,7 +254,9 @@
     </main>
 
     <footer>
-        <p>Built with HTML, CSS, JavaScript and AI.</p>
+        <p>
+            Built with HTML, CSS, JavaScript and AI.
+        </p>
     </footer>
 </body>
 
