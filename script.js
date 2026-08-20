@@ -146,6 +146,35 @@ const AVAILABLE_PROFILES = new Set([
     "media"
 ]);
 
+const PROFILE_ACTIONS = {
+    presentation: [
+        {
+            value: "next",
+            label: "Next slide"
+        },
+        {
+            value: "previous",
+            label: "Previous slide"
+        },
+        {
+            value: "presentation-start",
+            label: "Start slideshow (F5)"
+        },
+        {
+            value: "presentation-end",
+            label: "End slideshow (Esc)"
+        },
+        {
+            value: "presentation-black",
+            label: "Black or restore screen (B)"
+        },
+        {
+            value: "none",
+            label: "Neutral — no action"
+        }
+    ]
+};
+
 let activeProfile = "presentation";
 
 console.log("KRIYA JavaScript is connected.");
@@ -189,6 +218,8 @@ function changeControlProfile(profileName) {
             ? firstGestureInProfile.id
             : null;
 
+    renderProfileActionOptions();
+    
     stabilizePrediction(null);
     lastTriggeredGestureId = null;
 
@@ -625,6 +656,8 @@ function clearLandmarkCanvas() {
 const gestureForm = document.querySelector("#gesture-form");
 const gestureNameInput = document.querySelector("#gesture-name");
 const gestureActionSelect = document.querySelector("#gesture-action");
+const createGestureButton =
+    document.querySelector("#create-gesture-button");
 const formStatus = document.querySelector("#form-status");
 
 const gestureList = document.querySelector("#gesture-list");
@@ -638,6 +671,48 @@ const clearGesturesButton =
 let gestureClasses = [];
 
 let selectedGestureId = null;
+
+function renderProfileActionOptions() {
+    gestureActionSelect.innerHTML = "";
+
+    const profileActions =
+        PROFILE_ACTIONS[activeProfile];
+
+    if (profileActions === undefined) {
+        const unavailableOption =
+            document.createElement("option");
+
+        unavailableOption.value = "";
+        unavailableOption.textContent =
+            `${activeProfile} actions are coming next`;
+
+        gestureActionSelect.appendChild(
+            unavailableOption
+        );
+
+        gestureActionSelect.disabled = true;
+        createGestureButton.disabled = true;
+
+        return;
+    }
+
+    profileActions.forEach((action) => {
+        const actionOption =
+            document.createElement("option");
+
+        actionOption.value = action.value;
+        actionOption.textContent = action.label;
+
+        gestureActionSelect.appendChild(
+            actionOption
+        );
+    });
+
+    gestureActionSelect.disabled = false;
+    createGestureButton.disabled = false;
+}
+
+renderProfileActionOptions();
 
 gestureForm.addEventListener("submit", (event) => {
     event.preventDefault();

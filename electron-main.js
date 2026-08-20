@@ -48,6 +48,18 @@ ipcMain.handle(
                 reason: "desktop-control-paused"
             };
         }
+        if (
+            mainWindow !== null &&
+            !mainWindow.isDestroyed() &&
+            mainWindow.isFocused()
+        ) {
+            return {
+                success: true,
+                skipped: true,
+                actionName: actionName,
+                reason: "kriya-window-focused"
+            };
+        }
         try {
             return await performDesktopAction(actionName);
         } catch (error) {

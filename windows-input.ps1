@@ -61,6 +61,27 @@ while ($true) {
                 break
             }
 
+            "presentation-start" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "{F5}"
+                )
+                break
+            }
+
+            "presentation-end" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "{ESC}"
+                )
+                break
+            }
+
+            "presentation-black" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "b"
+                )
+                break
+            }
+
             "play" {
                 Send-MediaKey -VirtualKey 0xB3
                 break
