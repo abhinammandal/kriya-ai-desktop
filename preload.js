@@ -11,6 +11,43 @@ contextBridge.exposeInMainWorld(
                 "desktop-action",
                 actionName
             );
+        },
+
+        getDesktopControlState: () => {
+            return ipcRenderer.invoke(
+                "get-desktop-control-state"
+            );
+        },
+
+        setDesktopControlState: (enabled) => {
+            return ipcRenderer.invoke(
+                "set-desktop-control-state",
+                Boolean(enabled)
+            );
+        },
+
+        onDesktopControlStateChanged: (callback) => {
+            if (typeof callback !== "function") {
+                throw new TypeError(
+                    "Desktop-control listener must be a function."
+                );
+            }
+
+            const listener = (event, state) => {
+                callback(state);
+            };
+
+            ipcRenderer.on(
+                "desktop-control-state-changed",
+                listener
+            );
+
+            return () => {
+                ipcRenderer.removeListener(
+                    "desktop-control-state-changed",
+                    listener
+                );
+            };
         }
     }
 );

@@ -21,6 +21,23 @@ let isQuitting = false;
 let desktopControlEnabled = true;
 
 ipcMain.handle(
+    "get-desktop-control-state",
+    () => {
+        return {
+            enabled: desktopControlEnabled
+        };
+    }
+);
+
+ipcMain.handle(
+    "set-desktop-control-state",
+    (event, enabled) => {
+        return setDesktopControlEnabled(enabled);
+    }
+);
+
+
+ipcMain.handle(
     "desktop-action",
     async (event, actionName) => {
         if (!desktopControlEnabled) {
@@ -92,16 +109,38 @@ function showMainWindow() {
     mainWindow.focus();
 }
 
-function toggleDesktopControl() {
-    desktopControlEnabled =
-        !desktopControlEnabled;
+function setDesktopControlEnabled(enabled) {
+    desktopControlEnabled = Boolean(enabled);
 
     updateTrayMenu();
+
+    if (
+        mainWindow !== null &&
+        !mainWindow.isDestroyed()
+    ) {
+        mainWindow.webContents.send(
+            "desktop-control-state-changed",
+            {
+                enabled: desktopControlEnabled
+            }
+        );
+    }
 
     console.log(
         desktopControlEnabled
             ? "Desktop gesture control resumed."
             : "Desktop gesture control paused."
+    );
+
+    return {
+        success: true,
+        enabled: desktopControlEnabled
+    };
+}
+
+function toggleDesktopControl() {
+    return setDesktopControlEnabled(
+        !desktopControlEnabled
     );
 }
 

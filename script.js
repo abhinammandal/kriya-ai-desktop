@@ -85,10 +85,12 @@ const HAND_CONNECTIONS = [
 ];
 
 let cameraStream = null;
+let cameraIsStarting = false;
 let handLandmarker = null;
 let animationFrameId = null;
 let lastVideoTime = -1;
 let latestLandmarks = null;
+let desktopControlEnabled = true;
 let candidateGestureId = null;
 let candidateStartTime = 0;
 
@@ -157,8 +159,17 @@ async function initializeHandLandmarker() {
             "AI model ready. You can start the camera.";
 
         console.log("KRIYA hand-landmark model is ready.");
+
+        if (
+            desktopControlEnabled &&
+            cameraStream === null
+        ) {
+            await startCamera();
+        }
+
     } catch (error) {
         console.error("Model loading error:", error);
+
 
         cameraStatus.textContent =
             `AI model could not load: ${error.name}`;
@@ -167,17 +178,75 @@ async function initializeHandLandmarker() {
 
 initializeHandLandmarker();
 
+if (window.kriyaDesktop !== undefined) {
+    window.kriyaDesktop
+        .onDesktopControlStateChanged((state) => {
+            applyDesktopControlState(state)
+                .catch((error) => {
+                    console.error(
+                        "Could not apply desktop-control state:",
+                        error
+                    );
+                });
+        });
+
+    window.kriyaDesktop
+        .getDesktopControlState()
+        .then((state) => {
+            return applyDesktopControlState(state);
+        })
+        .catch((error) => {
+            console.error(
+                "Could not read desktop-control state:",
+                error
+            );
+        });
+}
+
+initializeHandLandmarker();
+
 cameraButton.addEventListener("click", async () => {
-    if (cameraStream !== null) {
-        stopCamera();
+    const shouldEnableControl =
+        cameraStream === null;
+
+    if (window.kriyaDesktop !== undefined) {
+        try {
+            await window.kriyaDesktop
+                .setDesktopControlState(
+                    shouldEnableControl
+                );
+        } catch (error) {
+            console.error(
+                "Could not change desktop-control state:",
+                error
+            );
+
+            cameraStatus.textContent =
+                "Could not change KRIYA listening state.";
+        }
+
         return;
     }
 
-    await startCamera();
+    if (shouldEnableControl) {
+        await startCamera();
+    } else {
+        stopCamera();
+    }
 });
 
 async function startCamera() {
-    cameraStatus.textContent = "Requesting camera permission...";
+    if (
+        cameraStream !== null ||
+        cameraIsStarting
+    ) {
+        return;
+    }
+
+    cameraIsStarting = true;
+
+    cameraStatus.textContent =
+        "Requesting camera permission...";
 
     try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -205,6 +274,8 @@ async function startCamera() {
 
         cameraStatus.textContent =
             `Camera could not start: ${error.name}`;
+    } finally {
+        cameraIsStarting = false;
     }
 }
 
@@ -243,8 +314,48 @@ function stopCamera() {
 
 }
 
+async function applyDesktopControlState(state) {
+    desktopControlEnabled =
+        Boolean(state.enabled);
+
+    if (!desktopControlEnabled) {
+        if (cameraStream !== null) {
+            stopCamera();
+        } else {
+            stabilizePrediction(null);
+            lastTriggeredGestureId = null;
+            updateCaptureButtonState();
+            clearLandmarkCanvas();
+        }
+
+        updatePredictionDisplay(
+            null,
+            "Gesture control paused"
+        );
+
+        cameraStatus.textContent =
+            "KRIYA is paused. Camera is off.";
+
+        return;
+    }
+
+    if (
+        handLandmarker !== null &&
+        cameraStream === null
+    ) {
+        await startCamera();
+    }
+}
+
 function predictWebcam() {
-    if (cameraStream === null || handLandmarker === null) {
+    if (cameraStream === null) {
+        return;
+    }
+
+    if (handLandmarker === null) {
+        animationFrameId =
+            requestAnimationFrame(predictWebcam);
+
         return;
     }
 
