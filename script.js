@@ -58,6 +58,9 @@ const listeningStatusText =
 const controlProfileSelect =
     document.querySelector("#control-profile");
 
+const autoProfileStatus =
+    document.querySelector("#auto-profile-status");
+
 const HAND_CONNECTIONS = [
     // Thumb
     [0, 1],
@@ -141,6 +144,7 @@ const PROFILE_STORAGE_KEY =
     "kriya-control-profile";
 
 const AVAILABLE_PROFILES = new Set([
+    "auto",
     "presentation",
     "browser",
     "media"
@@ -212,6 +216,9 @@ const PROFILE_ACTIONS = {
 
 let activeProfile = "presentation";
 
+let detectedProfile = null;
+let detectedProcessName = "unknown";
+
 console.log("KRIYA JavaScript is connected.");
 
 function loadControlProfile() {
@@ -231,6 +238,78 @@ function loadControlProfile() {
         activeProfile;
 }
 
+function getEffectiveProfile() {
+    if (activeProfile === "auto") {
+        return detectedProfile;
+    }
+
+    return activeProfile;
+}
+
+function formatProfileName(profileName) {
+    if (
+        typeof profileName !== "string" ||
+        profileName.length === 0
+    ) {
+        return "Unsupported";
+    }
+
+    return (
+        profileName.charAt(0).toUpperCase() +
+        profileName.slice(1)
+    );
+}
+
+function updateAutoProfileStatus() {
+    const autoModeActive =
+        activeProfile === "auto";
+
+    autoProfileStatus.hidden =
+        !autoModeActive;
+
+    if (!autoModeActive) {
+        return;
+    }
+
+    if (detectedProfile === null) {
+        autoProfileStatus.textContent =
+            `No control profile · ${detectedProcessName}`;
+
+        autoProfileStatus.classList.add(
+            "is-unsupported"
+        );
+
+        return;
+    }
+
+    autoProfileStatus.textContent =
+        `Auto → ${formatProfileName(detectedProfile)} ` +
+        `· ${detectedProcessName}`;
+
+    autoProfileStatus.classList.remove(
+        "is-unsupported"
+    );
+}
+
+function applyForegroundProfileState(state) {
+    detectedProcessName =
+        typeof state?.processName === "string"
+            ? state.processName
+            : "unknown";
+
+    const receivedProfile =
+        state?.profile;
+
+    detectedProfile =
+        typeof receivedProfile === "string" &&
+            receivedProfile !== "auto" &&
+            AVAILABLE_PROFILES.has(receivedProfile)
+            ? receivedProfile
+            : null;
+
+    updateAutoProfileStatus();
+}
+
 function changeControlProfile(profileName) {
     if (!AVAILABLE_PROFILES.has(profileName)) {
         return;
@@ -243,6 +322,8 @@ function changeControlProfile(profileName) {
         activeProfile
     );
 
+    updateAutoProfileStatus();
+
     const firstGestureInProfile =
         gestureClasses.find((gesture) => {
             return gesture.profile === activeProfile;
@@ -254,25 +335,52 @@ function changeControlProfile(profileName) {
             : null;
 
     renderProfileActionOptions();
-    
+
     stabilizePrediction(null);
     lastTriggeredGestureId = null;
 
     renderGestureClasses();
 
-    updatePredictionDisplay(
-        null,
-        "Profile changed"
-    );
+    if (activeProfile === "auto") {
+        if (detectedProfile === null) {
+            updatePredictionDisplay(
+                null,
+                "Waiting for a supported application"
+            );
 
-    formStatus.textContent =
-        firstGestureInProfile !== undefined
-            ? `Showing gestures from the ${activeProfile} profile.`
-            : `No gestures have been trained for the ${activeProfile} profile.`;
+            actionFeedback.textContent =
+                `Auto mode: ${detectedProcessName} ` +
+                `is not assigned to a control profile.`;
+        } else {
+            updatePredictionDisplay(
+                null,
+                `Auto → ${formatProfileName(detectedProfile)}`
+            );
 
-    actionFeedback.textContent =
-        `Active control profile: ${activeProfile}.`;
+            actionFeedback.textContent =
+                `Auto mode selected the ${detectedProfile} ` +
+                `profile for ${detectedProcessName}.`;
+        }
+
+        formStatus.textContent =
+            "Auto mode is active. Select a specific profile to train gestures.";
+    } else {
+        updatePredictionDisplay(
+            null,
+            "Profile changed"
+        );
+
+        formStatus.textContent =
+            firstGestureInProfile !== undefined
+                ? `Showing gestures from the ${activeProfile} profile.`
+                : `No gestures have been trained for the ${activeProfile} profile.`;
+
+        actionFeedback.textContent =
+            `Active control profile: ${activeProfile}.`;
+    }
 }
+
+
 
 controlProfileSelect.addEventListener(
     "change",
@@ -357,6 +465,23 @@ if (window.kriyaDesktop !== undefined) {
         .catch((error) => {
             console.error(
                 "Could not read desktop-control state:",
+                error
+            );
+        });
+
+    window.kriyaDesktop
+        .onForegroundProfileChanged((state) => {
+            applyForegroundProfileState(state);
+        });
+
+    window.kriyaDesktop
+        .getForegroundProfileState()
+        .then((state) => {
+            applyForegroundProfileState(state);
+        })
+        .catch((error) => {
+            console.error(
+                "Could not read foreground-profile state:",
                 error
             );
         });
@@ -710,6 +835,24 @@ let selectedGestureId = null;
 function renderProfileActionOptions() {
     gestureActionSelect.innerHTML = "";
 
+    if (activeProfile === "auto") {
+        const autoModeOption =
+            document.createElement("option");
+
+        autoModeOption.value = "";
+        autoModeOption.textContent =
+            "Auto mode — select a profile to train";
+
+        gestureActionSelect.appendChild(
+            autoModeOption
+        );
+
+        gestureActionSelect.disabled = true;
+        createGestureButton.disabled = true;
+
+        return;
+    }
+
     const profileActions =
         PROFILE_ACTIONS[activeProfile];
 
@@ -840,6 +983,11 @@ function loadGestureClasses() {
         );
 
     if (serializedGestureClasses === null) {
+        if (activeProfile === "auto") {
+            formStatus.textContent =
+                "Auto mode is active. Select a specific profile to train gestures.";
+        }
+
         return;
     }
 
@@ -877,9 +1025,21 @@ function loadGestureClasses() {
             saveGestureClasses();
         }
 
+        if (activeProfile === "auto") {
+            selectedGestureId = null;
+
+            formStatus.textContent =
+                "Auto mode is active. Select a specific profile to train gestures.";
+
+            return;
+        }
+
         const profileGestures =
             gestureClasses.filter((gesture) => {
-                return gesture.profile === activeProfile;
+                return (
+                    gesture.profile ===
+                    activeProfile
+                );
             });
 
         selectedGestureId =
@@ -972,25 +1132,45 @@ function calculateDistance(sampleA, sampleB) {
 function findNearestSamples(sample) {
     const comparisons = [];
 
+    const effectiveProfile =
+        getEffectiveProfile();
+
+    if (effectiveProfile === null) {
+        return comparisons;
+    }
+
     gestureClasses
         .filter((gestureClass) => {
-            return gestureClass.profile === activeProfile;
+            return (
+                gestureClass.profile ===
+                effectiveProfile
+            );
         })
         .forEach((gestureClass) => {
-            gestureClass.samples.forEach((trainingSample) => {
-                const distance =
-                    calculateDistance(sample, trainingSample);
+            gestureClass.samples.forEach(
+                (trainingSample) => {
+                    const distance =
+                        calculateDistance(
+                            sample,
+                            trainingSample
+                        );
 
-                comparisons.push({
-                    gestureClass: gestureClass,
-                    distance: distance
-                });
-            });
+                    comparisons.push({
+                        gestureClass: gestureClass,
+                        distance: distance
+                    });
+                }
+            );
         });
 
-    comparisons.sort((comparisonA, comparisonB) => {
-        return comparisonA.distance - comparisonB.distance;
-    });
+    comparisons.sort(
+        (comparisonA, comparisonB) => {
+            return (
+                comparisonA.distance -
+                comparisonB.distance
+            );
+        }
+    );
 
     return comparisons;
 }

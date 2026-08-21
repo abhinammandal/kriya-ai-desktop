@@ -15,10 +15,20 @@ const {
     stopDesktopActions
 } = require("./desktop-actions");
 
+const {
+    startForegroundProfileWatcher,
+    stopForegroundProfileWatcher
+} = require("./foreground-profile");
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let desktopControlEnabled = true;
+
+let foregroundApplicationState = {
+    processName: "unknown",
+    profile: null
+};
 
 ipcMain.handle(
     "get-desktop-control-state",
@@ -26,6 +36,13 @@ ipcMain.handle(
         return {
             enabled: desktopControlEnabled
         };
+    }
+);
+
+ipcMain.handle(
+    "get-foreground-profile-state",
+    () => {
+        return foregroundApplicationState;
     }
 );
 
@@ -81,6 +98,38 @@ ipcMain.handle(
         }
     }
 );
+
+function handleForegroundApplicationChange(
+    foregroundState
+) {
+    foregroundApplicationState = {
+        processName:
+            foregroundState.processName,
+
+        profile:
+            foregroundState.profile
+    };
+
+    const detectedProfile =
+        foregroundApplicationState.profile ??
+        "unsupported";
+
+    console.log(
+        `Foreground application: ` +
+        `${foregroundApplicationState.processName} ` +
+        `→ ${detectedProfile}`
+    );
+
+    if (
+        mainWindow !== null &&
+        !mainWindow.isDestroyed()
+    ) {
+        mainWindow.webContents.send(
+            "foreground-profile-changed",
+            foregroundApplicationState
+        );
+    }
+}
 
 function createMainWindow() {
     mainWindow = new BrowserWindow({
@@ -229,7 +278,13 @@ async function createTray() {
 
 app.whenReady().then(async () => {
     startDesktopActions();
+
+    startForegroundProfileWatcher(
+        handleForegroundApplicationChange
+    );
+
     createMainWindow();
+
     await createTray();
 
     const shortcutRegistered =
@@ -253,6 +308,8 @@ app.whenReady().then(async () => {
 
 app.on("before-quit", () => {
     isQuitting = true;
+
+    stopForegroundProfileWatcher();
     stopDesktopActions();
 });
 

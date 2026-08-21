@@ -865,3 +865,26 @@ form button {
         padding: 22px;
     }
 }
+
+.auto-profile-status {
+    display: block;
+
+    max-width: 14rem;
+    margin-top: 0.35rem;
+
+    color: var(--accent);
+
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.auto-profile-status.is-unsupported {
+    color: var(--muted-text);
+}
+
+.auto-profile-status[hidden] {
+    display: none;
+}

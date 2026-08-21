@@ -48,6 +48,36 @@ contextBridge.exposeInMainWorld(
                     listener
                 );
             };
+        },
+
+        getForegroundProfileState: () => {
+            return ipcRenderer.invoke(
+                "get-foreground-profile-state"
+            );
+        },
+
+        onForegroundProfileChanged: (callback) => {
+            if (typeof callback !== "function") {
+                throw new TypeError(
+                    "Foreground-profile listener must be a function."
+                );
+            }
+
+            const listener = (event, state) => {
+                callback(state);
+            };
+
+            ipcRenderer.on(
+                "foreground-profile-changed",
+                listener
+            );
+
+            return () => {
+                ipcRenderer.removeListener(
+                    "foreground-profile-changed",
+                    listener
+                );
+            };
         }
     }
 );
