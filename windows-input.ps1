@@ -51,6 +51,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{RIGHT}"
                 )
+
                 break
             }
 
@@ -58,6 +59,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{LEFT}"
                 )
+
                 break
             }
 
@@ -65,6 +67,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "%{LEFT}"
                 )
+
                 break
             }
 
@@ -72,6 +75,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "%{RIGHT}"
                 )
+
                 break
             }
 
@@ -79,6 +83,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{PGDN}"
                 )
+
                 break
             }
 
@@ -86,6 +91,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{PGUP}"
                 )
+
                 break
             }
 
@@ -93,13 +99,15 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "^r"
                 )
+
                 break
             }
 
             "browser-space" {
                 [System.Windows.Forms.SendKeys]::SendWait(
-                    "{SPACE}"
+                    " "
                 )
+
                 break
             }
 
@@ -107,6 +115,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{F5}"
                 )
+
                 break
             }
 
@@ -114,6 +123,7 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "{ESC}"
                 )
+
                 break
             }
 
@@ -121,11 +131,77 @@ while ($true) {
                 [System.Windows.Forms.SendKeys]::SendWait(
                     "b"
                 )
+
                 break
             }
 
             "play" {
                 Send-MediaKey -VirtualKey 0xB3
+
+                break
+            }
+
+            "media-play-focused" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    " "
+                )
+
+                break
+            }
+
+            "media-next" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "n"
+                )
+
+                break
+            }
+
+            "media-previous" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "p"
+                )
+
+                break
+            }
+
+            "media-seek-forward" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "+{RIGHT}"
+                )
+
+                break
+            }
+
+            "media-seek-backward" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "+{LEFT}"
+                )
+
+                break
+            }
+
+            "media-volume-up" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "^{UP}"
+                )
+
+                break
+            }
+
+            "media-volume-down" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "^{DOWN}"
+                )
+
+                break
+            }
+
+            "media-volume-mute" {
+                [System.Windows.Forms.SendKeys]::SendWait(
+                    "m"
+                )
+
                 break
             }
 

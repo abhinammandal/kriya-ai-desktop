@@ -211,6 +211,49 @@ const PROFILE_ACTIONS = {
             value: "none",
             label: "Neutral — no action"
         }
+    ],
+
+    media: [
+        {
+            value: "media-play-focused",
+            label: "Play or pause — Focused player (VLC)"
+        },
+        {
+            value: "play",
+            label: "Play or pause — Windows media session"
+        },
+        {
+            value: "media-next",
+            label: "Next track"
+        },
+        {
+            value: "media-previous",
+            label: "Previous track"
+        },
+        {
+            value: "media-seek-forward",
+            label: "Seek forward — Focused player"
+        },
+        {
+            value: "media-seek-backward",
+            label: "Seek backward — Focused player"
+        },
+        {
+            value: "media-volume-up",
+            label: "Volume up"
+        },
+        {
+            value: "media-volume-down",
+            label: "Volume down"
+        },
+        {
+            value: "media-volume-mute",
+            label: "Mute or unmute"
+        },
+        {
+            value: "none",
+            label: "Neutral — no action"
+        }
     ]
 };
 
@@ -831,6 +874,9 @@ const clearGesturesButton =
 let gestureClasses = [];
 
 let selectedGestureId = null;
+
+let pendingDeletionGestureId = null;
+let deletionConfirmationTimer = null;
 
 function renderProfileActionOptions() {
     gestureActionSelect.innerHTML = "";
@@ -1462,44 +1508,111 @@ captureSampleButton.addEventListener("click", () => {
         `The sample contains ${sample.length} values.`;
 });
 
-deleteGestureButton.addEventListener("click", () => {
-    const selectedGesture =
-        gestureClasses.find((gesture) => {
-            return gesture.id === selectedGestureId;
-        });
-
-    if (selectedGesture === undefined) {
-        return;
-    }
-
-    const deletionConfirmed =
-        window.confirm(
-            `Delete "${selectedGesture.name}" and all its samples?`
+function resetDeletionConfirmation() {
+    if (deletionConfirmationTimer !== null) {
+        window.clearTimeout(
+            deletionConfirmationTimer
         );
 
-    if (!deletionConfirmed) {
-        return;
+        deletionConfirmationTimer = null;
     }
 
-    gestureClasses =
-        gestureClasses.filter((gesture) => {
-            return gesture.id !== selectedGestureId;
+    pendingDeletionGestureId = null;
+
+    deleteGestureButton.textContent =
+        "Delete selected";
+
+    deleteGestureButton.classList.remove(
+        "is-confirming"
+    );
+}
+
+deleteGestureButton.addEventListener(
+    "click",
+    () => {
+        const selectedGesture =
+            gestureClasses.find((gesture) => {
+                return (
+                    gesture.id ===
+                    selectedGestureId
+                );
+            });
+
+        if (selectedGesture === undefined) {
+            resetDeletionConfirmation();
+
+            return;
+        }
+
+        const deletionIsConfirmed =
+            pendingDeletionGestureId ===
+            selectedGesture.id;
+
+        if (!deletionIsConfirmed) {
+            resetDeletionConfirmation();
+
+            pendingDeletionGestureId =
+                selectedGesture.id;
+
+            deleteGestureButton.textContent =
+                "Confirm deletion";
+
+            deleteGestureButton.classList.add(
+                "is-confirming"
+            );
+
+            formStatus.textContent =
+                `Click Confirm deletion again to remove ` +
+                `"${selectedGesture.name}" and its samples.`;
+
+            deletionConfirmationTimer =
+                window.setTimeout(() => {
+                    resetDeletionConfirmation();
+
+                    formStatus.textContent =
+                        "Deletion cancelled.";
+                }, 4000);
+
+            return;
+        }
+
+        resetDeletionConfirmation();
+
+        gestureClasses =
+            gestureClasses.filter((gesture) => {
+                return (
+                    gesture.id !==
+                    selectedGesture.id
+                );
+            });
+
+        const remainingProfileGestures =
+            gestureClasses.filter((gesture) => {
+                return (
+                    gesture.profile ===
+                    activeProfile
+                );
+            });
+
+        selectedGestureId =
+            remainingProfileGestures.length > 0
+                ? remainingProfileGestures[0].id
+                : null;
+
+        saveGestureClasses();
+        renderGestureClasses();
+
+        stabilizePrediction(null);
+        lastTriggeredGestureId = null;
+
+        formStatus.textContent =
+            `"${selectedGesture.name}" was deleted.`;
+
+        gestureNameInput.focus({
+            preventScroll: true
         });
-
-    selectedGestureId =
-        gestureClasses.length > 0
-            ? gestureClasses[0].id
-            : null;
-
-    saveGestureClasses();
-    renderGestureClasses();
-
-    stabilizePrediction(null);
-    lastTriggeredGestureId = null;
-
-    formStatus.textContent =
-        `"${selectedGesture.name}" was deleted.`;
-});
+    }
+);
 
 clearGesturesButton.addEventListener("click", () => {
     if (gestureClasses.length === 0) {

@@ -19,7 +19,15 @@ const SUPPORTED_DESKTOP_ACTIONS = new Set([
     "browser-refresh",
     "browser-space",
 
-    "play"
+    "play",
+    "media-play-focused",
+    "media-next",
+    "media-previous",
+    "media-seek-forward",
+    "media-seek-backward",
+    "media-volume-up",
+    "media-volume-down",
+    "media-volume-mute"
 ]);
 
 let inputWorker = null;
@@ -184,7 +192,7 @@ function performDesktopAction(actionName) {
 
         pendingRequests.push(request);
 
-                worker.stdin.write(
+        worker.stdin.write(
             `${actionName}\n`,
             (error) => {
                 if (error === undefined || error === null) {
