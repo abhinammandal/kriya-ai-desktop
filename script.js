@@ -871,6 +871,26 @@ const deleteGestureButton =
 const clearGesturesButton =
     document.querySelector("#clear-gestures-button");
 
+const exportGesturesButton =
+    document.querySelector(
+        "#export-gestures-button"
+    );
+
+const importGesturesButton =
+    document.querySelector(
+        "#import-gestures-button"
+    );
+
+const gestureBackupInput =
+    document.querySelector(
+        "#gesture-backup-input"
+    );
+
+const gestureBackupStatus =
+    document.querySelector(
+        "#gesture-backup-status"
+    );
+
 let gestureClasses = [];
 
 let selectedGestureId = null;
@@ -1021,6 +1041,372 @@ function saveGestureClasses() {
         serializedGestureClasses
     );
 }
+
+function exportGestureBackup() {
+    if (gestureClasses.length === 0) {
+        gestureBackupStatus.textContent =
+            "There are no trained gestures to export.";
+
+        return;
+    }
+
+    const backupData = {
+        format: "kriya-ai-gesture-backup",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        gestureClasses: gestureClasses
+    };
+
+    const serializedBackup =
+        JSON.stringify(
+            backupData,
+            null,
+            2
+        );
+
+    const backupBlob =
+        new Blob(
+            [serializedBackup],
+            {
+                type: "application/json"
+            }
+        );
+
+    const downloadUrl =
+        URL.createObjectURL(
+            backupBlob
+        );
+
+    const downloadLink =
+        document.createElement("a");
+
+    const backupDate =
+        new Date()
+            .toISOString()
+            .slice(0, 10);
+
+    downloadLink.href = downloadUrl;
+
+    downloadLink.download =
+        `kriya-ai-gesture-backup-${backupDate}.json`;
+
+    document.body.appendChild(
+        downloadLink
+    );
+
+    downloadLink.click();
+    downloadLink.remove();
+
+    window.setTimeout(
+        () => {
+            URL.revokeObjectURL(
+                downloadUrl
+            );
+        },
+        0
+    );
+
+    gestureBackupStatus.textContent =
+        `Exported ${gestureClasses.length} trained gesture(s) ` +
+        "from all control profiles.";
+}
+
+exportGesturesButton.addEventListener(
+    "click",
+    exportGestureBackup
+);
+
+let pendingGestureImport = null;
+
+const MAXIMUM_BACKUP_FILE_SIZE =
+    10 * 1024 * 1024;
+
+function validateGestureBackup(backupData) {
+    if (
+        backupData === null ||
+        typeof backupData !== "object"
+    ) {
+        throw new Error(
+            "The selected file does not contain a valid backup."
+        );
+    }
+
+    if (
+        backupData.format !==
+        "kriya-ai-gesture-backup"
+    ) {
+        throw new Error(
+            "This file is not a KRIYA AI gesture backup."
+        );
+    }
+
+    if (backupData.version !== 1) {
+        throw new Error(
+            "This backup version is not supported."
+        );
+    }
+
+    if (
+        !Array.isArray(
+            backupData.gestureClasses
+        )
+    ) {
+        throw new Error(
+            "The backup does not contain a gesture list."
+        );
+    }
+
+    const gestureIds = new Set();
+
+    const validatedGestures =
+        backupData.gestureClasses.map(
+            (gesture, gestureIndex) => {
+                if (
+                    gesture === null ||
+                    typeof gesture !== "object"
+                ) {
+                    throw new Error(
+                        `Gesture ${gestureIndex + 1} is invalid.`
+                    );
+                }
+
+                if (
+                    typeof gesture.id !== "string" ||
+                    gesture.id.length === 0
+                ) {
+                    throw new Error(
+                        `Gesture ${gestureIndex + 1} has no valid ID.`
+                    );
+                }
+
+                if (gestureIds.has(gesture.id)) {
+                    throw new Error(
+                        "The backup contains duplicate gesture IDs."
+                    );
+                }
+
+                gestureIds.add(gesture.id);
+
+                if (
+                    typeof gesture.name !== "string" ||
+                    gesture.name.trim().length === 0
+                ) {
+                    throw new Error(
+                        `Gesture ${gestureIndex + 1} has no valid name.`
+                    );
+                }
+
+                if (
+                    typeof gesture.action !== "string" ||
+                    gesture.action.length === 0
+                ) {
+                    throw new Error(
+                        `Gesture "${gesture.name}" has no valid action.`
+                    );
+                }
+
+                if (
+                    gesture.profile === "auto" ||
+                    !AVAILABLE_PROFILES.has(
+                        gesture.profile
+                    )
+                ) {
+                    throw new Error(
+                        `Gesture "${gesture.name}" has an invalid profile.`
+                    );
+                }
+
+                if (
+                    !Array.isArray(
+                        gesture.samples
+                    )
+                ) {
+                    throw new Error(
+                        `Gesture "${gesture.name}" has invalid samples.`
+                    );
+                }
+
+                const validatedSamples =
+                    gesture.samples.map(
+                        (sample) => {
+                            const sampleIsValid =
+                                Array.isArray(sample) &&
+                                sample.every(
+                                    (coordinate) => {
+                                        return (
+                                            typeof coordinate ===
+                                                "number" &&
+                                            Number.isFinite(
+                                                coordinate
+                                            )
+                                        );
+                                    }
+                                );
+
+                            if (!sampleIsValid) {
+                                throw new Error(
+                                    `Gesture "${gesture.name}" contains a damaged sample.`
+                                );
+                            }
+
+                            return [...sample];
+                        }
+                    );
+
+                return {
+                    id: gesture.id,
+                    name: gesture.name.trim(),
+                    action: gesture.action,
+                    profile: gesture.profile,
+                    samples: validatedSamples
+                };
+            }
+        );
+
+    return validatedGestures;
+}
+
+function resetPendingGestureImport() {
+    pendingGestureImport = null;
+
+    importGesturesButton.textContent =
+        "Import backup";
+
+    gestureBackupInput.value = "";
+}
+
+async function prepareGestureImport(file) {
+    if (file.size > MAXIMUM_BACKUP_FILE_SIZE) {
+        throw new Error(
+            "The selected backup is larger than 10 MB."
+        );
+    }
+
+    const serializedBackup =
+        await file.text();
+
+    const backupData =
+        JSON.parse(
+            serializedBackup
+        );
+
+    pendingGestureImport =
+        validateGestureBackup(
+            backupData
+        );
+
+    importGesturesButton.textContent =
+        "Confirm import";
+
+    gestureBackupStatus.textContent =
+        `Validated ${pendingGestureImport.length} gesture(s). ` +
+        "Click Confirm import to restore this backup.";
+}
+
+function restoreGestureBackup() {
+    if (pendingGestureImport === null) {
+        gestureBackupInput.value = "";
+        gestureBackupInput.click();
+
+        return;
+    }
+
+    const importedGestures =
+        pendingGestureImport;
+
+    gestureClasses =
+        importedGestures.map((gesture) => {
+            return {
+                ...gesture,
+                samples:
+                    gesture.samples.map(
+                        (sample) => {
+                            return [...sample];
+                        }
+                    )
+            };
+        });
+
+    saveGestureClasses();
+
+    const firstGestureInProfile =
+        activeProfile === "auto"
+            ? undefined
+            : gestureClasses.find(
+                (gesture) => {
+                    return (
+                        gesture.profile ===
+                        activeProfile
+                    );
+                }
+            );
+
+    selectedGestureId =
+        firstGestureInProfile !== undefined
+            ? firstGestureInProfile.id
+            : null;
+
+    resetDeletionConfirmation();
+
+    stabilizePrediction(null);
+    lastTriggeredGestureId = null;
+
+    renderGestureClasses();
+
+    updatePredictionDisplay(
+        null,
+        "Backup restored"
+    );
+
+    gestureBackupStatus.textContent =
+        `Successfully restored ${gestureClasses.length} gesture(s) ` +
+        "from the backup.";
+
+    formStatus.textContent =
+        activeProfile === "auto"
+            ? "Backup restored. Auto mode remains active."
+            : `Backup restored for all profiles. ` +
+              `Showing the ${activeProfile} profile.`;
+
+    resetPendingGestureImport();
+
+    importGesturesButton.focus();
+}
+
+importGesturesButton.addEventListener(
+    "click",
+    restoreGestureBackup
+);
+
+gestureBackupInput.addEventListener(
+    "change",
+    async () => {
+        const selectedFile =
+            gestureBackupInput.files?.[0];
+
+        if (selectedFile === undefined) {
+            return;
+        }
+
+        try {
+            await prepareGestureImport(
+                selectedFile
+            );
+        } catch (error) {
+            console.error(
+                "Could not import gesture backup:",
+                error
+            );
+
+            resetPendingGestureImport();
+
+            gestureBackupStatus.textContent =
+                error instanceof Error
+                    ? `Import failed: ${error.message}`
+                    : "Import failed because the backup is invalid.";
+        }
+    }
+);
 
 function loadGestureClasses() {
     const serializedGestureClasses =

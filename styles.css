@@ -560,6 +560,69 @@ form button {
         0 8px 22px rgb(255 138 128 / 15%);
 }
 
+.gesture-backup {
+    margin-top: 24px;
+    padding: 20px;
+
+    background-color:
+        rgb(100 230 212 / 4%);
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.gesture-backup-heading h4 {
+    margin: 0;
+
+    color: var(--text);
+    font-size: 16px;
+}
+
+.gesture-backup-heading p {
+    margin: 4px 0 0;
+
+    color: var(--muted-text);
+    font-size: 13px;
+}
+
+.gesture-backup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin-top: 16px;
+}
+
+.gesture-backup-actions button {
+    flex: 1;
+
+    min-width: 150px;
+}
+
+#export-gestures-button {
+    color: var(--background);
+    background-color: var(--accent);
+}
+
+#import-gestures-button {
+    color: var(--accent);
+    background-color: transparent;
+
+    border: 1px solid var(--accent);
+}
+
+#import-gestures-button:hover {
+    color: var(--background);
+    background-color: var(--accent);
+}
+
+#gesture-backup-status {
+    margin: 14px 0 0;
+
+    color: var(--muted-text);
+    font-size: 13px;
+}
+
 /* --------------------------------------------------
    Prediction section
 -------------------------------------------------- */
