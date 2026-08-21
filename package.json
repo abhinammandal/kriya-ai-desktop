@@ -4,14 +4,22 @@
   "description": "A personalized background gesture controller for Windows",
   "main": "electron-main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abhinammandal/kriya-ai-desktop.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "gesture-control",
+    "computer-vision",
+    "electron",
+    "accessibility",
+    "desktop-automation"
+  ],
+  "author": "Abhinam Mandal",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
@@ -19,6 +27,47 @@
   },
   "homepage": "https://github.com/abhinammandal/kriya-ai-desktop#readme",
   "devDependencies": {
-    "electron": "^43.4.1"
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.abhinammandal.kriyaai",
+    "productName": "KRIYA AI",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "index.html",
+      "styles.css",
+      "script.js",
+      "electron-main.js",
+      "preload.js",
+      "desktop-actions.js",
+      "foreground-profile.js",
+      "windows-input.ps1",
+      "foreground-app.ps1",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "KRIYA-AI-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KRIYA AI",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
   }
 }
