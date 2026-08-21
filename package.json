@@ -47,9 +47,11 @@
       "foreground-profile.js",
       "windows-input.ps1",
       "foreground-app.ps1",
+      "assets/kriya-ai.ico",
       "package.json"
     ],
     "win": {
+      "icon": "assets/kriya-ai.ico",
       "target": [
         {
           "target": "nsis",
